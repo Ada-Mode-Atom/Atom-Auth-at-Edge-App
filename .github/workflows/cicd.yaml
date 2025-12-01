@@ -28,12 +28,3 @@ jobs:
     uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-release-notes.yaml@main
     needs: [check]
     if: needs.check.outputs.result == 'success'
-
-  cd:
-    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-sam-cd.yaml@main # path to the reusable action workflow
-    needs: [release_notes]
-    with:
-      sam-template: template.yaml # template defining the stack to update
-      stack-name: atom-dev-am-e  # name of the stack to update
-      lint: false
-    secrets: inherit # Inherit org level secrets to configure AWS connection
