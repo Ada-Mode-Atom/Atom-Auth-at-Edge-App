@@ -66,7 +66,7 @@ docs-preview: api-ref
 template-path ?= template.yaml
 build-path ?= .aws-sam
 local-sam-build:
-	sam build -t $(template-path) --build-dir $(build-path) --parallel --use-container --cached  --beta-features --parameter-overrides AtlasSDKToken=$(ATLAS_SDK_TOKEN)
+	sam build -t $(template-path) --build-dir $(build-path) --parallel --use-container --cached  --beta-features --parameter-overrides AtomSDKToken=$(ATOM_SDK_TOKEN)
 
 config-path ?= samconfig.toml
 local-sam-deploy:
@@ -77,7 +77,7 @@ init-sam-deploy:
 
 
 sam-publish:
-	sam package --output-template-file .aws-sam/packaged.yaml --s3-bucket ada-mode-atlas
+	sam package --output-template-file .aws-sam/packaged.yaml --s3-bucket ada-mode-atom
 	sam publish --template .aws-sam/packaged.yaml --region us-east-1
 
 help:

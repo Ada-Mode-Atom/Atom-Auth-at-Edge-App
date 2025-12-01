@@ -1,4 +1,4 @@
-"""Atlas Application."""
+"""Atom Application."""
 
 from packaging.version import Version
 

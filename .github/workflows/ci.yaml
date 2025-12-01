@@ -1,4 +1,4 @@
-name: Atlas PR CI Workflow
+name: Atom PR CI Workflow
 
 on:
   pull_request:
@@ -7,6 +7,6 @@ on:
       - synchronize
 
 jobs:
-  ci: # Find this action here: https://github.com/Ada-Mode-Atlas/Atlas-SDK/blob/main/.github/workflows/template-app-ci.yaml
-    uses: Ada-Mode-Atlas/Atlas-SDK/.github/workflows/template-app-ci.yaml@main # path to the reusable action workflow
+  ci: # Find this action here: https://github.com/Ada-Mode-Atom/Atom-SDK/blob/main/.github/workflows/template-app-ci.yaml
+    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-app-ci.yaml@main # path to the reusable action workflow
     secrets: inherit

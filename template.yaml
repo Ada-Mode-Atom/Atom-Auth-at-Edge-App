@@ -4,15 +4,15 @@ Description: Creates Lambda@Edge functions and SSL certificate
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Atlas-Auth-at-Edge
+    Name: Atom-Auth-at-Edge
     Description: OAuth2 authorisation code flow running on the edge (via cloudfront and Lambda@edge)
     Author: ada
     SpdxLicenseId: Apache-2.0
     ReadmeUrl: README.md
     Labels: ['oauth2']
-    HomePageUrl: https://github.com/Ada-Mode-Atlas/Atlas-Auth-at-Edge-App
+    HomePageUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
     SemanticVersion: 1.0.0
-    SourceCodeUrl: https://github.com/Ada-Mode-Atlas/Atlas-Auth-at-Edge-App
+    SourceCodeUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
 
 Parameters:
   StackName:

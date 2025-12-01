@@ -1,4 +1,4 @@
-name: Atlas SDK Sync Labels Workflow
+name: Atom SDK Sync Labels Workflow
 
 on:
   push:

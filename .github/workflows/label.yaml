@@ -1,4 +1,4 @@
-name: Atlas PR Labelling Workflow
+name: Atom PR Labelling Workflow
 
 on:
   pull_request_target:

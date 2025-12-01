@@ -119,7 +119,7 @@ def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: 
         cookie_list.append(
             {
                 "key": "Set-Cookie",
-                "value": f"ATLAS_ID_TOKEN={id_token}; Path=/; Secure; HttpOnly;",
+                "value": f"ATOM_ID_TOKEN={id_token}; Path=/; Secure; HttpOnly;",
             }
         )
 
@@ -127,7 +127,7 @@ def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: 
         cookie_list.append(
             {
                 "key": "Set-Cookie",
-                "value": f"ATLAS_ACCESS_TOKEN={access_token}; Path=/; Secure; HttpOnly;",
+                "value": f"ATOM_ACCESS_TOKEN={access_token}; Path=/; Secure; HttpOnly;",
             }
         )
 
@@ -135,7 +135,7 @@ def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: 
         cookie_list.append(
             {
                 "key": "Set-Cookie",
-                "value": f"ATLAS_REFRESH_TOKEN={refresh_token}; Path=/; Secure; HttpOnly;",
+                "value": f"ATOM_REFRESH_TOKEN={refresh_token}; Path=/; Secure; HttpOnly;",
             }
         )
 
@@ -153,13 +153,13 @@ def get_cookies(headers: dict) -> tuple[str, str, str]:
     for cookie in headers.get("cookie", []):
         cookiesList = cookie["value"].split(";")
         for subCookie in cookiesList:
-            if "ATLAS_ID_TOKEN" in subCookie:
+            if "ATOM_ID_TOKEN" in subCookie:
                 id_token = subCookie.split("=")[1]
 
-            if "ATLAS_ACCESS_TOKEN" in subCookie:
+            if "ATOM_ACCESS_TOKEN" in subCookie:
                 access_token = subCookie.split("=")[1]
 
-            if "ATLAS_REFRESH_TOKEN" in subCookie:
+            if "ATOM_REFRESH_TOKEN" in subCookie:
                 refresh_token = subCookie.split("=")[1]
 
     return id_token, access_token, refresh_token

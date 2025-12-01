@@ -1,4 +1,4 @@
-name: Atlas Release Workflow
+name: Atom Release Workflow
 
 on:
   workflow_dispatch:
@@ -25,8 +25,8 @@ on:
           - AUTO
 
 jobs:
-  ci: # Find this action here: https://github.com/Ada-Mode-Atlas/Atlas-SDK/blob/main/.github/workflows/template-app-ci.yaml
-    uses: Ada-Mode-Atlas/Atlas-SDK/.github/workflows/template-app-ci.yaml@main # path to the reusable action workflow
+  ci: # Find this action here: https://github.com/Ada-Mode-Atom/Atom-SDK/blob/main/.github/workflows/template-app-ci.yaml
+    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-app-ci.yaml@main # path to the reusable action workflow
     secrets: inherit
 
   check:  # Used for the branch protection
@@ -43,7 +43,7 @@ jobs:
           jobs: ${{ toJSON(needs) }}
 
   bump:
-    uses: Ada-Mode-Atlas/Atlas-SDK/.github/workflows/template-release.yaml@main
+    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-release.yaml@main
     needs: [check]
     if: needs.check.outputs.result == 'success'
     with:
@@ -52,21 +52,21 @@ jobs:
       bump_type: ${{ inputs.bump_type }}
 
   cd-default:
-    uses: Ada-Mode-Atlas/Atlas-SDK/.github/workflows/template-sam-cd.yaml@main # path to the reusable action workflow
+    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-sam-cd.yaml@main # path to the reusable action workflow
     needs: [bump]
     if: inputs.release_type == 'final'
     with:
       sam-template: template.yaml # template defining the stack to update
-      stack-name: atlas-am-e  # name of the stack to update
+      stack-name: atom-am-e  # name of the stack to update
       lint: false
     secrets: inherit # Inherit org level secrets to configure AWS connection
 
   cd-cnsc:
-    uses: Ada-Mode-Atlas/Atlas-SDK/.github/workflows/template-sam-cd.yaml@main # path to the reusable action workflow
+    uses: Ada-Mode-Atom/Atom-SDK/.github/workflows/template-sam-cd.yaml@main # path to the reusable action workflow
     needs: [bump]
     if: inputs.release_type == 'final'
     with:
       sam-template: template.yaml # template defining the stack to update
-      stack-name: atlas-cnsc-am-e  # name of the stack to update
+      stack-name: atom-cnsc-am-e  # name of the stack to update
       lint: false
     secrets: inherit # Inherit org level secrets to configure AWS connection

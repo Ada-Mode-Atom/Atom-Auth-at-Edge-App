@@ -250,9 +250,9 @@ wheels = [
 ]
 
 [[package]]
-name = "atlas-sdk"
+name = "atom-sdk"
 version = "1.0.5"
-source = { git = "https://github.com/Ada-Mode-Atlas/Atlas-SDK.git?rev=v1.0.5#b135106c82a211bd68a29afda91bb7e0720b758e" }
+source = { git = "https://github.com/Ada-Mode-Atom/Atom-SDK.git?rev=v1.0.5#b135106c82a211bd68a29afda91bb7e0720b758e" }
 dependencies = [
     { name = "asyncache" },
     { name = "constructs" },
@@ -2496,7 +2496,7 @@ dependencies = [
 
 [package.optional-dependencies]
 streamlit = [
-    { name = "atlas-sdk", extra = ["streamlit"] },
+    { name = "atom-sdk", extra = ["streamlit"] },
 ]
 
 [package.dev-dependencies]
@@ -2559,7 +2559,7 @@ dev = [
 requires-dist = [
     { name = "aioboto3", specifier = ">=15.0.0" },
     { name = "aiohttp", specifier = ">=3.12.13" },
-    { name = "atlas-sdk", extras = ["streamlit"], marker = "extra == 'streamlit'", git = "https://github.com/Ada-Mode-Atlas/Atlas-SDK.git?rev=v1.0.5" },
+    { name = "atom-sdk", extras = ["streamlit"], marker = "extra == 'streamlit'", git = "https://github.com/Ada-Mode-Atom/Atom-SDK.git?rev=v1.0.5" },
     { name = "boto3" },
     { name = "python-jose", specifier = "==3.3.0" },
 ]
