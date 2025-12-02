@@ -1,8 +1,8 @@
-# Atlas Application | Contribution
+# Atom Application | Contribution
 
-This application uses the Atlas platform.
+This application uses the Atom platform.
 
-The `atlas_sdk` python library consists of reusable methods, classes, templates & cloud resources for integration into Atlas applications and projects.
+The `atom_sdk` python library consists of reusable methods, classes, templates & cloud resources for integration into Atom applications and projects.
 
 ## Prerequisites
 
@@ -32,11 +32,11 @@ nvm list
 
 ```bash
 # Clone the repo and cd into the repo directory
-git clone https://github.com/Ada-Mode-Atlas/... # pass repository name here
+git clone https://github.com/Ada-Mode-Atom/... # pass repository name here
 cd ... # pass repository name here
 ```
 
-The `sdk` is hosted on a private repository within the Ada Mode Atlas organisation, to install the SDK you will need a personal access token. Instructions to create one can be found [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens). To install only basic read-only requirements to the [SDK](https://github.com/Ada-Mode-Atlas/Atlas-SDK) repository are required.
+The `sdk` is hosted on a private repository within the Ada Mode Atom organisation, to install the SDK you will need a personal access token. Instructions to create one can be found [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens). To install only basic read-only requirements to the [SDK](https://github.com/Ada-Mode-Atom/Atom-SDK) repository are required.
 
 Now you can create the environment
 ```bash
@@ -46,7 +46,7 @@ Now you can create the environment
 # https://docs.astral.sh/uv/getting-started/installation/
 pip install uv
 
-# Install atlas-sdk, pre-commit & all dependencies in a virtual environmment
+# Install atom-sdk, pre-commit & all dependencies in a virtual environmment
 make install
 ```
 

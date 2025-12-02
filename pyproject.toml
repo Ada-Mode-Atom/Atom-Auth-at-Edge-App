@@ -1,7 +1,7 @@
 [project]
 name = "sdk"
 version = "0.3.18"
-description = "Atlas AM-E Application"
+description = "Atom AM-E Application"
 readme = "README.md"
 requires-python = '>=3.12, <3.13'
 authors = [
@@ -20,7 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 streamlit = [
-    "atlas-sdk[streamlit]"
+    "atom-sdk[streamlit]"
 ]
 
 [dependency-groups]
@@ -48,9 +48,10 @@ dev = [
     'ruff',
     'pyright',
     'codespell',
-    'pydoclint' ,
+    'pydoclint',
     'mypy',
     'pyright',
+    "aws-sam-cli>=1.148.0",
 ]
 
 all = [
@@ -61,7 +62,7 @@ all = [
 default-groups = ['dev']
 
 [tool.uv.sources]
-atlas-sdk = { git = "https://github.com/Ada-Mode-Atlas/Atlas-SDK.git", rev = "v1.0.5" }
+atom-sdk = { git = "https://github.com/Ada-Mode-Atom/Atom-SDK.git", rev = "v1.0.5" }
 
 [tool.pytest.ini_options]
 testpaths = 'tests'
@@ -177,4 +178,4 @@ changelog_incremental = false
 tag_format = "v$version"
 
 [tool.commitizen.extras]
-repo_url = "https://github.com/Ada-Mode-Atlas/Application-AM-E-Chatbot"
+repo_url = "https://github.com/Ada-Mode-Atom/Application-AM-E-Chatbot"

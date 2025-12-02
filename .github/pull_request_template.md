@@ -1,4 +1,4 @@
-<!-- Thank you for your contribution to this Atlas Application -->
+<!-- Thank you for your contribution to this Atom Application -->
 
 <!-- Please label your pull request such that it gets in the release notes accurately
 ["breaking", "security", "feature", "bug", "refactor", "upgrade", "docs", "internal", "testing", "other"]
