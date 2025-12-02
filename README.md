@@ -28,7 +28,7 @@ The same process can be used to pick up new versions of the auth app and apply t
 * OIDC dicsovery document url such as `.../.well-known/openid-configuration`
 * Cloudfront distribution (for deployment of the application)
 
-If the openid configuration is taked from a cognito userpool it must have a corresponding domain with a managed login UI.
+If the openid configuration is taken from a cognito userpool it must have a corresponding domain with a managed login UI.
 
 
 A deployed instance of the application creates the following resources:
