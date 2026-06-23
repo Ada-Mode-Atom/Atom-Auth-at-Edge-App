@@ -30,6 +30,11 @@ async def get_client_id(namespace: str) -> str:
     return await _get_param(f"/{namespace}/auth/client_id")
 
 
+async def get_scope(namespace: str) -> list[str]:
+    scope = await _get_param(f"/{namespace}/auth/scope")
+    return scope.split(sep=" ")
+
+
 async def get_openid_config(url: str) -> dict:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -95,7 +100,7 @@ def request_token(code: str, client_id: str, redirect_uri: str, config: dict) ->
     return id_token, access_token, refresh_token
 
 
-def request_signin(client_id: str, state: str, redirect_uri: str, config: dict) -> dict:
+def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[str], config: dict) -> dict:
     response = {
         "status": "307",
         "statusDescription": "Temporary Redirect",
@@ -103,7 +108,7 @@ def request_signin(client_id: str, state: str, redirect_uri: str, config: dict) 
             "location": [
                 {
                     "key": "location",
-                    "value": f"{config['authorization_endpoint']}?client_id={client_id}&response_type=code&scope=email+openid+phone+profile&redirect_uri={redirect_uri}&state={state}",
+                    "value": f"{config['authorization_endpoint']}?client_id={client_id}&response_type=code&scope={'+'.join(scope)}&redirect_uri={redirect_uri}&state={state}",
                 },
             ],
         },
@@ -223,11 +228,12 @@ async def _auth_handler(event: dict, context) -> dict:
     __OPENID_CONFIGURATION_URL__ = await get_openid_configuration_url(namespace=namespace)
     __CONFIG__ = await get_openid_config(url=__OPENID_CONFIGURATION_URL__)
     __JWKS__ = await get_jkws(config=__CONFIG__)
+    __SCOPE__ = await get_scope(namespace=namespace)
 
     request = event["Records"][0]["cf"]["request"]
     headers = request["headers"]
 
-    id_token, access_token, refresh_token = get_cookies(headers)
+    _, access_token, refresh_token = get_cookies(headers)
 
     try:
         action = verify_token(access_token, jwks=__JWKS__)
@@ -255,21 +261,21 @@ async def _auth_handler(event: dict, context) -> dict:
                 state=_build_uri(request),
                 redirect_uri=_build_redirect_uri(request, __REDIRECT_PATH__),
                 config=__CONFIG__,
+                scope=__SCOPE__,
             )
         else:
             return set_cookies(
                 request=request, id_token=id_token, access_token=access_token, refresh_token=refresh_token
             )
 
-    elif action == "SIGNIN":
+    else:
         return request_signin(
             client_id=__CLIENT_ID__,
             state=_build_uri(request),
             redirect_uri=_build_redirect_uri(request, __REDIRECT_PATH__),
             config=__CONFIG__,
+            scope=__SCOPE__,
         )
-    else:
-        raise ValueError("Action type is not supported")
 
 
 def auth_handler(event: dict, context) -> dict:

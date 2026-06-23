@@ -9,7 +9,7 @@ Metadata:
     Author: ada
     SpdxLicenseId: Apache-2.0
     ReadmeUrl: README.md
-    Labels: ['oauth2']
+    Labels: ["oauth2"]
     HomePageUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
     SemanticVersion: 1.0.0
     SourceCodeUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
@@ -18,7 +18,7 @@ Parameters:
   StackName:
     Type: String
     Description: The application that owns this setup and parameter namespace.
-    AllowedPattern: '^[a-zA-Z0-9_-]+$'
+    AllowedPattern: "^[a-zA-Z0-9_-]+$"
     ConstraintDescription: "Only letters, numbers, hyphens, and underscores are allowed (no spaces or special characters)."
 
   DiscoveryDocument:
@@ -34,14 +34,17 @@ Parameters:
     Type: String
     Description: Oauth2 Client Id configured with the provided redirect url and hosted UI
 
+  Scope:
+    Type: String
+    Description: Oauth2 Client Id configured with the provided auth scope
+
 Globals:
   Function:
     Timeout: 5
     MemorySize: 128
-    Runtime: python3.9
+    Runtime: python3.12
 
 Resources:
-
   DiscoveryParameter:
     Type: AWS::SSM::Parameter
     Properties:
@@ -65,6 +68,14 @@ Resources:
       Type: String
       Value: !Ref ClientId
       Description: SSM Parameter for the Oauth2 Client Id
+
+  ScopeParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /${StackName}/auth/scope
+      Type: String
+      Value: !Ref Scope
+      Description: SSM Parameter for the Oauth2 Scopes
 
   CallbackFunction:
     Type: AWS::Serverless::Function
@@ -158,7 +169,6 @@ Resources:
             Resource: "*"
 
 Outputs:
-
   AuthHandler:
     Value: !GetAtt AuthorizeFunction.Arn
     Description: The auth handler ARN (use the latest version)
