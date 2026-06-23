@@ -16,12 +16,11 @@ dependencies = [
     "boto3",
     "aiohttp>=3.12.13",
     "aioboto3>=15.0.0",
+    "jose"
 ]
 
 [project.optional-dependencies]
-streamlit = [
-    "atom-sdk[streamlit]"
-]
+
 
 [dependency-groups]
 dev = [
@@ -46,12 +45,11 @@ dev = [
     'docspec',
     'eval-type-backport',
     'ruff',
-    'pyright',
     'codespell',
     'pydoclint',
     'mypy',
-    'pyright',
     "aws-sam-cli>=1.148.0",
+    "ty>=0.0.52",
 ]
 
 all = [
@@ -60,9 +58,17 @@ all = [
 
 [tool.uv]
 default-groups = ['dev']
-
 [tool.uv.sources]
-atom-sdk = { git = "https://github.com/Ada-Mode-Atom/Atom-SDK.git", rev = "v1.0.5" }
+atom-sdk = { git = "https://github.com/Ada-Mode-Atom/Atom-SDK.git", rev = "v3.4.12" }
+
+[tool.ty.rules]
+deprecated ='error'
+division-by-zero = 'error'
+unused-ignore-comment = 'error'
+possibly-missing-attribute ='ignore'
+
+[tool.ty.src]
+exclude = ["./migrations/"]
 
 [tool.pytest.ini_options]
 testpaths = 'tests'
@@ -83,8 +89,9 @@ markers = [
 
 [tool.ruff]
 line-length = 120
-target-version = 'py312'
+target-version = 'py39'
 exclude = ["migrations"]
+
 
 [tool.ruff.lint]
 select = [
@@ -103,7 +110,7 @@ select = [
     'PYI063', # flake8-pyi
     'PYI066', # flake8-pyi
 ]
-ignore = ['D105', 'E501', 'D107', 'B008', 'D106', 'B904', 'D205', 'D101', 'D102', 'E402']
+ignore = ['D1', 'E501', 'D107', 'B008', 'D106', 'B904', 'D205', 'D101', 'D102', 'E402']
 flake8-quotes = {inline-quotes = 'double', multiline-quotes = 'double'}
 isort = { known-first-party = ['sdk', 'tests'] }
 mccabe = { max-complexity = 14 }
@@ -144,12 +151,6 @@ source = [
     'sdk/'
 ]
 
-[tool.pyright]
-include = ['sdk', 'tests']
-deprecateTypingAliases = true
-reportDeprecated = true
-typeCheckingMode = "standard"
-
 [tool.codespell]
 skip = '.git,env*,uv.lock,template.yaml'
 
@@ -162,7 +163,6 @@ skip-checking-raises = true
 ignore-underscore-args = true
 skip-checking-short-docstring = false
 allow-init-docstring = false
-
 
 [tool.commitizen]
 version_provider = "uv"
@@ -178,4 +178,4 @@ changelog_incremental = false
 tag_format = "v$version"
 
 [tool.commitizen.extras]
-repo_url = "https://github.com/Ada-Mode-Atom/Application-AM-E-Chatbot"
+repo_url = "https://github.com/Ada-Mode-Atlas/Atom-Auth-at-Edge-App"

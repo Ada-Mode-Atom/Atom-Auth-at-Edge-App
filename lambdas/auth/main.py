@@ -1,8 +1,9 @@
 import asyncio
 import re
 import time
+from http.cookies import SimpleCookie
 from typing import Literal
-from urllib.parse import unquote, urljoin
+from urllib.parse import unquote, urlencode, urljoin
 
 import aiohttp
 import boto3
@@ -14,7 +15,11 @@ ssm_client = boto3.client("ssm", region_name="us-east-1")
 
 
 async def _get_param(name: str) -> str:
-    response = await asyncio.to_thread(ssm_client.get_parameter, Name=name)
+    response = await asyncio.to_thread(
+        ssm_client.get_parameter,
+        Name=name,
+        WithDecryption=True,
+    )
     return response["Parameter"]["Value"]
 
 
@@ -49,15 +54,16 @@ async def get_jkws(config: dict) -> dict:
             return await resp.json()
 
 
-def request_refresh(client_id: str, refresh_token: str, config: dict) -> tuple[str, str, str]:
+def request_refresh(client_id: str, refresh_token: str, config: dict, scope: list[str]) -> tuple[str, str, str]:
     payload = {
         "grant_type": "refresh_token",
         "client_id": client_id,
         "refresh_token": refresh_token,
+        "scope": " ".join(scope),
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-    res = requests.post(config["token_endpoint"], params=payload, headers=headers)
+    res = requests.post(config["token_endpoint"], data=payload, headers=headers)
     try:
         res.raise_for_status()
     except requests.exceptions.HTTPError as e:
@@ -74,16 +80,17 @@ def request_refresh(client_id: str, refresh_token: str, config: dict) -> tuple[s
     return id_token, access_token, refresh_token
 
 
-def request_token(code: str, client_id: str, redirect_uri: str, config: dict) -> tuple[str, str, str]:
+def request_token(code: str, client_id: str, redirect_uri: str, config: dict, scope: list[str]) -> tuple[str, str, str]:
     payload = {
         "grant_type": "authorization_code",
         "client_id": client_id,
         "code": code,
         "redirect_uri": redirect_uri,
+        "scope": " ".join(scope),
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-    res = requests.post(config["token_endpoint"], params=payload, headers=headers)
+    res = requests.post(config["token_endpoint"], data=payload, headers=headers)
     try:
         res.raise_for_status()
     except requests.exceptions.HTTPError as e:
@@ -101,6 +108,16 @@ def request_token(code: str, client_id: str, redirect_uri: str, config: dict) ->
 
 
 def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[str], config: dict) -> dict:
+    query = urlencode(
+        {
+            "client_id": client_id,
+            "response_type": "code",
+            "scope": " ".join(scope),
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "response_mode": "query",
+        }
+    )
     response = {
         "status": "307",
         "statusDescription": "Temporary Redirect",
@@ -108,7 +125,7 @@ def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[st
             "location": [
                 {
                     "key": "location",
-                    "value": f"{config['authorization_endpoint']}?client_id={client_id}&response_type=code&scope={'+'.join(scope)}&redirect_uri={redirect_uri}&state={state}",
+                    "value": f"{config['authorization_endpoint']}?{query}",
                 },
             ],
         },
@@ -151,23 +168,16 @@ def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: 
 
 
 def get_cookies(headers: dict) -> tuple[str, str, str]:
-    id_token = ""
-    access_token = ""
-    refresh_token = ""
+    raw_cookie = "; ".join(cookie["value"] for cookie in headers.get("cookie", []))
 
-    for cookie in headers.get("cookie", []):
-        cookiesList = cookie["value"].split(";")
-        for subCookie in cookiesList:
-            if "ATOM_ID_TOKEN" in subCookie:
-                id_token = subCookie.split("=")[1]
+    parsed = SimpleCookie()
+    parsed.load(raw_cookie)
 
-            if "ATOM_ACCESS_TOKEN" in subCookie:
-                access_token = subCookie.split("=")[1]
-
-            if "ATOM_REFRESH_TOKEN" in subCookie:
-                refresh_token = subCookie.split("=")[1]
-
-    return id_token, access_token, refresh_token
+    return (
+        parsed["ATOM_ID_TOKEN"].value if "ATOM_ID_TOKEN" in parsed else "",
+        parsed["ATOM_ACCESS_TOKEN"].value if "ATOM_ACCESS_TOKEN" in parsed else "",
+        parsed["ATOM_REFRESH_TOKEN"].value if "ATOM_REFRESH_TOKEN" in parsed else "",
+    )
 
 
 def verify_token(access_token: str, jwks: dict) -> Literal["REFRESH", "SIGNIN", "CONTINUE"]:
@@ -253,7 +263,7 @@ async def _auth_handler(event: dict, context) -> dict:
     if action == "REFRESH":
         try:
             id_token, access_token, refresh_token = request_refresh(
-                client_id=__CLIENT_ID__, refresh_token=refresh_token, config=__CONFIG__
+                client_id=__CLIENT_ID__, refresh_token=refresh_token, config=__CONFIG__, scope=__SCOPE__
             )
         except Exception as _:
             return request_signin(
@@ -289,6 +299,7 @@ async def _callback_handler(event: dict, context) -> dict:
     __CONFIG__ = await get_openid_config(url=__OPENID_CONFIGURATION_URL__)
     __CLIENT_ID__ = await get_client_id(namespace=namespace)
     __REDIRECT_PATH__ = await get_redirect_path(namespace=namespace)
+    __SCOPE__ = await get_scope(namespace=namespace)
 
     request = event["Records"][0]["cf"]["request"]
     qs = request["querystring"]
@@ -299,6 +310,7 @@ async def _callback_handler(event: dict, context) -> dict:
         client_id=__CLIENT_ID__,
         redirect_uri=_build_redirect_uri(request, __REDIRECT_PATH__),
         config=__CONFIG__,
+        scope=__SCOPE__,
     )
     target_uri = unquote(query_params["state"])
     response = {
