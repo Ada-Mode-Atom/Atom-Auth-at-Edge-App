@@ -37,6 +37,7 @@ Parameters:
   Scope:
     Type: String
     Description: Oauth2 Client Id configured with the provided auth scope
+    Default: openid email profile
 
 Globals:
   Function:
