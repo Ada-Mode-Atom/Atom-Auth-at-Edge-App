@@ -1,4 +1,5 @@
 name: Atom Release Workflow
+name: Atom Release Workflow
 
 on:
   workflow_dispatch:

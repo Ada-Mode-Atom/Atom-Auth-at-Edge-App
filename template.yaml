@@ -9,9 +9,10 @@ Metadata:
     Author: ada
     SpdxLicenseId: Apache-2.0
     ReadmeUrl: README.md
+    LicenseUrl: LICENSE
     Labels: ["oauth2"]
     HomePageUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.1
     SourceCodeUrl: https://github.com/Ada-Mode-Atom/Atom-Auth-at-Edge-App
 
 Parameters:
