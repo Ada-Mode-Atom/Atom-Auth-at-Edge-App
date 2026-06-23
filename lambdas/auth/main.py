@@ -1,9 +1,12 @@
 import asyncio
+import base64
+import hashlib
 import re
+import secrets
 import time
 from http.cookies import SimpleCookie
 from typing import Literal
-from urllib.parse import unquote, urlencode, urljoin
+from urllib.parse import parse_qs, urlencode, urljoin
 
 import aiohttp
 import boto3
@@ -21,6 +24,9 @@ async def _get_param(name: str) -> str:
         WithDecryption=True,
     )
     return response["Parameter"]["Value"]
+
+
+PKCE_COOKIE_NAME = "ATOM_PKCE_VERIFIER"
 
 
 async def get_openid_configuration_url(namespace: str) -> str:
@@ -54,6 +60,16 @@ async def get_jkws(config: dict) -> dict:
             return await resp.json()
 
 
+def _base64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def create_pkce_pair() -> tuple[str, str]:
+    code_verifier = _base64url(secrets.token_bytes(64))
+    code_challenge = _base64url(hashlib.sha256(code_verifier.encode("ascii")).digest())
+    return code_verifier, code_challenge
+
+
 def request_refresh(client_id: str, refresh_token: str, config: dict, scope: list[str]) -> tuple[str, str, str]:
     payload = {
         "grant_type": "refresh_token",
@@ -80,13 +96,16 @@ def request_refresh(client_id: str, refresh_token: str, config: dict, scope: lis
     return id_token, access_token, refresh_token
 
 
-def request_token(code: str, client_id: str, redirect_uri: str, config: dict, scope: list[str]) -> tuple[str, str, str]:
+def request_token(
+    code: str, client_id: str, redirect_uri: str, config: dict, scope: list[str], code_verifier: str
+) -> tuple[str, str, str]:
     payload = {
         "grant_type": "authorization_code",
         "client_id": client_id,
         "code": code,
         "redirect_uri": redirect_uri,
         "scope": " ".join(scope),
+        "code_verifier": code_verifier,
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
@@ -108,6 +127,7 @@ def request_token(code: str, client_id: str, redirect_uri: str, config: dict, sc
 
 
 def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[str], config: dict) -> dict:
+    code_verifier, code_challenge = create_pkce_pair()
     query = urlencode(
         {
             "client_id": client_id,
@@ -116,6 +136,8 @@ def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[st
             "redirect_uri": redirect_uri,
             "state": state,
             "response_mode": "query",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
         }
     )
     response = {
@@ -128,13 +150,44 @@ def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[st
                     "value": f"{config['authorization_endpoint']}?{query}",
                 },
             ],
+            "set-cookie": [
+                build_set_cookie_header(
+                    PKCE_COOKIE_NAME,
+                    code_verifier,
+                    max_age=300,
+                )
+            ],
         },
     }
 
     return response
 
 
-def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: str) -> dict:
+def build_set_cookie_header(
+    name: str,
+    value: str,
+    *,
+    max_age: int | None = None,
+    path: str = "/",
+) -> dict:
+    cookie = f"{name}={value}; Path={path}; Secure; HttpOnly; SameSite=Lax"
+
+    if max_age is not None:
+        cookie += f"; Max-Age={max_age}"
+
+    return {
+        "key": "Set-Cookie",
+        "value": cookie,
+    }
+
+
+def build_clear_cookie_header(name: str, *, path: str = "/") -> dict:
+    return build_set_cookie_header(name, "", max_age=0, path=path)
+
+
+def set_token_cookies(
+    request: dict, id_token: str, access_token: str, refresh_token: str, clear_pkce: bool = True
+) -> dict:
     cookie_list = request["headers"].get("set-cookie", [])
 
     if id_token:
@@ -161,13 +214,32 @@ def set_cookies(request: dict, id_token: str, access_token: str, refresh_token: 
             }
         )
 
+    if clear_pkce:
+        cookie_list.append(build_clear_cookie_header(PKCE_COOKIE_NAME))
+
     if len(cookie_list) > 0:
         request["headers"]["set-cookie"] = cookie_list
 
     return request
 
 
-def get_cookies(headers: dict) -> tuple[str, str, str]:
+def get_cookie(headers: dict, name: str) -> str:
+    for cookie in headers.get("cookie", []):
+        for part in cookie["value"].split(";"):
+            part = part.strip()
+
+            if "=" not in part:
+                continue
+
+            cookie_name, cookie_value = part.split("=", 1)
+
+            if cookie_name == name:
+                return cookie_value
+
+    return ""
+
+
+def get_token_cookies(headers: dict) -> tuple[str, str, str]:
     raw_cookie = "; ".join(cookie["value"] for cookie in headers.get("cookie", []))
 
     parsed = SimpleCookie()
@@ -243,7 +315,7 @@ async def _auth_handler(event: dict, context) -> dict:
     request = event["Records"][0]["cf"]["request"]
     headers = request["headers"]
 
-    _, access_token, refresh_token = get_cookies(headers)
+    _, access_token, refresh_token = get_token_cookies(headers)
 
     try:
         action = verify_token(access_token, jwks=__JWKS__)
@@ -274,7 +346,7 @@ async def _auth_handler(event: dict, context) -> dict:
                 scope=__SCOPE__,
             )
         else:
-            return set_cookies(
+            return set_token_cookies(
                 request=request, id_token=id_token, access_token=access_token, refresh_token=refresh_token
             )
 
@@ -302,31 +374,50 @@ async def _callback_handler(event: dict, context) -> dict:
     __SCOPE__ = await get_scope(namespace=namespace)
 
     request = event["Records"][0]["cf"]["request"]
-    qs = request["querystring"]
-    query_params = dict(q.split("=") for q in qs.split("&"))
+    headers = request["headers"]
+    query_params = parse_qs(request.get("querystring", ""))
+    code = query_params.get("code", [""])[0]
+    state = query_params.get("state", ["/"])[0]
+
+    if "error" in query_params:
+        return {
+            "status": "403",
+            "statusDescription": "Forbidden",
+            "body": query_params.get("error_description", ["Authentication failed"])[0],
+        }
+
+    code_verifier = get_cookie(headers, PKCE_COOKIE_NAME)
+
+    if not code_verifier:
+        return {
+            "status": "400",
+            "statusDescription": "Bad Request",
+            "body": "Missing PKCE verifier cookie",
+        }
 
     id_token, access_token, refresh_token = request_token(
-        code=query_params["code"],
+        code=code,
         client_id=__CLIENT_ID__,
         redirect_uri=_build_redirect_uri(request, __REDIRECT_PATH__),
         config=__CONFIG__,
         scope=__SCOPE__,
+        code_verifier=code_verifier,
     )
-    target_uri = unquote(query_params["state"])
+
     response = {
-        "status": "302",
-        "statusDescription": "Found",
+        "status": "307",
+        "statusDescription": "Temporary Redirect",
         "headers": {
             "location": [
                 {
                     "key": "location",
-                    "value": target_uri,
+                    "value": state or "/",
                 },
             ]
         },
     }
 
-    return set_cookies(response, id_token=id_token, access_token=access_token, refresh_token=refresh_token)
+    return set_token_cookies(response, id_token=id_token, access_token=access_token, refresh_token=refresh_token)
 
 
 def callback_handler(event: dict, context) -> dict:

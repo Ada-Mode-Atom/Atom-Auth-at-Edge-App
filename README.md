@@ -7,20 +7,12 @@ Note: This application must be deployed in us-east-1. You can deploy instances o
 New instances of the application template can be published as follows (Note that you may want to increment the version in the *template.yaml* beforehand):
 
 ```bash
+uv run sam build
 uv run sam package --output-template-file .aws-sam/packaged.yaml --s3-bucket ada-mode-atom
 uv run sam publish --template .aws-sam/packaged.yaml --region us-east-1
 ```
 
-If you cannot find the application to deploy on the serverless application repository then it likely needs the sharing policy adjusting. It is quite unreliable that your application actually shows up as available.
-
-Instead you can create a cloudformation stack directly:
-```bash
-aws serverlessrepo create-cloud-formation-template --region us-east-1 --application-id arn:aws:serverlessrepo:us-east-1:539182614893:applications/Atom-Auth-at-Edge --semantic-version 1.0.1
-```
-From which go to the cloudformation console -> create stack (new resources) -> from url -> past generated url from command above.
-
-The same process can be used to pick up new versions of the auth app and apply them to an existing stack. It can be a bit circular, its best to put dummy values in the stack on init (`ClientId` and `DiscoveryDocument` and replace them with the actuals once they are ready).
-
+To update an existing stack to a new version of this serverless.
 
 
 ## Requirements
