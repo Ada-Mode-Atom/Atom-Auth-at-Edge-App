@@ -79,16 +79,23 @@ def request_refresh(client_id: str, refresh_token: str, config: dict, scope: lis
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-    res = requests.post(config["token_endpoint"], data=payload, headers=headers)
+    res = requests.post(
+        config["token_endpoint"],
+        data=payload,
+        headers=headers,
+        timeout=10,
+    )
     try:
         res.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise Exception(f"HTTP error occurred ({res.json()}): {e}")
     except requests.exceptions.RequestException as e:
-        raise Exception(f"A request error occurred ({res.json()}): {e}")
+        try:
+            detail = res.json()
+        except Exception:
+            detail = res.text
+
+        raise Exception(f"Token endpoint error ({detail}): {e}") from e
 
     jwt = res.json()
-
     id_token = jwt.get("id_token", "")
     access_token = jwt["access_token"]
     refresh_token = jwt.get("refresh_token", refresh_token)
@@ -109,7 +116,12 @@ def request_token(
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-    res = requests.post(config["token_endpoint"], data=payload, headers=headers)
+    res = requests.post(
+        config["token_endpoint"],
+        data=payload,
+        headers=headers,
+        timeout=10,
+    )
     try:
         res.raise_for_status()
     except requests.exceptions.HTTPError as e:
@@ -146,7 +158,7 @@ def request_signin(client_id: str, state: str, redirect_uri: str, scope: list[st
         "headers": {
             "location": [
                 {
-                    "key": "location",
+                    "key": "Location",
                     "value": f"{config['authorization_endpoint']}?{query}",
                 },
             ],
@@ -186,41 +198,28 @@ def build_clear_cookie_header(name: str, *, path: str = "/") -> dict:
 
 
 def set_token_cookies(
-    request: dict, id_token: str, access_token: str, refresh_token: str, clear_pkce: bool = True
+    response: dict,
+    id_token: str,
+    access_token: str,
+    refresh_token: str,
+    clear_pkce: bool = True,
 ) -> dict:
-    cookie_list = request["headers"].get("set-cookie", [])
+    cookie_list = response["headers"].get("set-cookie", [])
 
     if id_token:
-        cookie_list.append(
-            {
-                "key": "Set-Cookie",
-                "value": f"ATOM_ID_TOKEN={id_token}; Path=/; Secure; HttpOnly;",
-            }
-        )
+        cookie_list.append(build_set_cookie_header("ATOM_ID_TOKEN", id_token))
 
     if access_token:
-        cookie_list.append(
-            {
-                "key": "Set-Cookie",
-                "value": f"ATOM_ACCESS_TOKEN={access_token}; Path=/; Secure; HttpOnly;",
-            }
-        )
+        cookie_list.append(build_set_cookie_header("ATOM_ACCESS_TOKEN", access_token))
 
     if refresh_token:
-        cookie_list.append(
-            {
-                "key": "Set-Cookie",
-                "value": f"ATOM_REFRESH_TOKEN={refresh_token}; Path=/; Secure; HttpOnly;",
-            }
-        )
+        cookie_list.append(build_set_cookie_header("ATOM_REFRESH_TOKEN", refresh_token))
 
     if clear_pkce:
         cookie_list.append(build_clear_cookie_header(PKCE_COOKIE_NAME))
 
-    if len(cookie_list) > 0:
-        request["headers"]["set-cookie"] = cookie_list
-
-    return request
+    response["headers"]["set-cookie"] = cookie_list
+    return response
 
 
 def get_cookie(headers: dict, name: str) -> str:
@@ -249,6 +248,36 @@ def get_token_cookies(headers: dict) -> tuple[str, str, str]:
         parsed["ATOM_ID_TOKEN"].value if "ATOM_ID_TOKEN" in parsed else "",
         parsed["ATOM_ACCESS_TOKEN"].value if "ATOM_ACCESS_TOKEN" in parsed else "",
         parsed["ATOM_REFRESH_TOKEN"].value if "ATOM_REFRESH_TOKEN" in parsed else "",
+    )
+
+
+def redirect_with_token_cookies(
+    location: str,
+    id_token: str,
+    access_token: str,
+    refresh_token: str,
+    clear_pkce: bool = True,
+) -> dict:
+    response = {
+        "status": "307",
+        "statusDescription": "Temporary Redirect",
+        "headers": {
+            "location": [
+                {
+                    "key": "Location",
+                    "value": location,
+                }
+            ],
+            "set-cookie": [],
+        },
+    }
+
+    return set_token_cookies(
+        response,
+        id_token=id_token,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        clear_pkce=clear_pkce,
     )
 
 
@@ -346,8 +375,12 @@ async def _auth_handler(event: dict, context) -> dict:
                 scope=__SCOPE__,
             )
         else:
-            return set_token_cookies(
-                request=request, id_token=id_token, access_token=access_token, refresh_token=refresh_token
+            return redirect_with_token_cookies(
+                location=_build_uri(request),
+                id_token=id_token,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                clear_pkce=False,
             )
 
     else:
@@ -386,6 +419,13 @@ async def _callback_handler(event: dict, context) -> dict:
             "body": query_params.get("error_description", ["Authentication failed"])[0],
         }
 
+    if not code:
+        return {
+            "status": "400",
+            "statusDescription": "Bad Request",
+            "body": "Missing authorization code",
+        }
+
     code_verifier = get_cookie(headers, PKCE_COOKIE_NAME)
 
     if not code_verifier:
@@ -404,20 +444,13 @@ async def _callback_handler(event: dict, context) -> dict:
         code_verifier=code_verifier,
     )
 
-    response = {
-        "status": "307",
-        "statusDescription": "Temporary Redirect",
-        "headers": {
-            "location": [
-                {
-                    "key": "location",
-                    "value": state or "/",
-                },
-            ]
-        },
-    }
-
-    return set_token_cookies(response, id_token=id_token, access_token=access_token, refresh_token=refresh_token)
+    return redirect_with_token_cookies(
+        location=state or "/",
+        id_token=id_token,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        clear_pkce=True,
+    )
 
 
 def callback_handler(event: dict, context) -> dict:
